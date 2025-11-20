@@ -1,0 +1,5 @@
+train: C:/Data/Projects/Factory Vision/dataset/images/train
+val: C:/Data/Projects/Factory Vision/dataset/images/val
+names:
+  - scratch
+  - dent

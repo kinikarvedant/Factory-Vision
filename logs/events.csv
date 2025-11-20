@@ -1,0 +1,6 @@
+timestamp,source,image_path,cls,conf,x1,y1,x2,y2,severity,is_defect
+2025-09-16T12:04:42.367944,webcam,data/webcam\fcb5a011d8914c4c8d79b77ba952a544.jpg,OK,1.0,0,0,0,0,none,0
+2025-09-16T12:05:03.988907,webcam,data/webcam\4831a539d5e34910a26dc4429b0cd59c.jpg,OK,1.0,0,0,0,0,none,0
+2025-09-16T12:05:05.078391,webcam,data/webcam\74e6837e3820434c919b9a522c32efe2.jpg,OK,1.0,0,0,0,0,none,0
+2025-09-16T12:05:06.911959,webcam,data/webcam\6b0309e89d1b4d37b62a64ce550299c6.jpg,OK,1.0,0,0,0,0,none,0
+2025-09-16T12:05:14.624946,webcam,data/webcam\d8df86d5c8b94087884751ccf51a3dd0.jpg,OK,1.0,0,0,0,0,none,0
