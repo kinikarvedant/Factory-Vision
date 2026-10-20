@@ -3,3 +3,9 @@ __pycache__/
 # runtime output from app.py (snapshots can contain people)
 data/uploads/
 data/webcam/
+
+# third-party photos and webcam captures stay local
+dataset/images/val/00000.jpg
+dataset/images/val/00011.jpg
+dataset/images/val/00029.jpg
+data/webcam/
