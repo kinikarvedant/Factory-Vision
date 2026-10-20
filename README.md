@@ -104,3 +104,7 @@ streamlit run app.py
 ## Tech stack
 
 Python, Ultralytics YOLOv8 (pinned to 8.2.103), PyTorch, OpenCV, Streamlit, pandas, NumPy, Pillow.
+
+## Licence
+
+This project is for educational and research purposes.
