@@ -1,13 +1,3 @@
-from streamlit_webrtc import webrtc_streamer
-import av
-
-def video_frame_callback(frame):
-    img = frame.to_ndarray(format="bgr24")
-    results = model.predict(img, conf=conf_th, iou=iou_th, imgsz=imgsz)
-    vis, _ = draw_detections(img, results[0], model.names)
-    return av.VideoFrame.from_ndarray(vis, format="bgr24")
-
-
 # app.py
 import os
 import time
@@ -25,7 +15,7 @@ from PIL import Image
 # ---------------------
 st.set_page_config(page_title="Factory Vision — Real-time Quality Inspection", layout="wide", page_icon="🧪")
 st.title("Factory Vision — Real-time Quality Inspection")
-st.caption("Upload • Webcam • Simulated line • Analytics • CSV logs • ONNX-ready")
+st.caption("Upload • Webcam • Simulated line • Analytics • CSV logs")
 
 with st.sidebar:
     st.header("Settings")
@@ -197,3 +187,21 @@ with tab_sim:
             st.error(f"Folder not found: {sim_dir}")
         else:
             files = [os.path.join(sim_dir, f) for f in sorted(os.listdir(sim_dir)) if f.lower().endswith((".jpg", ".jpeg", ".png"))]
+            for path in files:
+                img = cv2.imread(path)
+                result = predict(model, img, conf_th, iou_th, imgsz)
+                vis, dets = draw_detections(img, result, model_names)
+                sev = severity_from_dets(dets, img.shape)
+                placeholder.image(cv2.cvtColor(vis, cv2.COLOR_BGR2RGB), use_container_width=True,
+                                  caption=f"{os.path.basename(path)} | Severity: {sev}")
+                append_log("simulated", path, dets, sev)
+                time.sleep(sim_delay)
+
+with tab_analytics:
+    if os.path.exists(LOG_CSV):
+        df_log = pd.read_csv(LOG_CSV)
+        st.metric("Images inspected", df_log["image_path"].nunique())
+        st.bar_chart(df_log["cls"].value_counts())
+        st.dataframe(df_log.tail(50), use_container_width=True)
+    else:
+        st.caption("No logs yet — run a prediction to create logs.")

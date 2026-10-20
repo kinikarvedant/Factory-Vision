@@ -1,19 +1,9 @@
 from ultralytics import YOLO
-import os
 
-# Load your trained model
-model = YOLO("runs/detect/train3/weights/best.pt")  # Update path if needed
+model = YOLO("runs/detect/train3/weights/best.pt")
 
-# Folder of images to run inference on
-image_folder = "dataset/images/val"
-
-# Output folder
-output_folder = "inference_results"
-os.makedirs(output_folder, exist_ok=True)
-
-# Run inference on each image
-for filename in os.listdir(image_folder):
-    if filename.lower().endswith((".jpg", ".png", ".jpeg")):
-        image_path = os.path.join(image_folder, filename)
-        results = model.predict(image_path, save=True, save_txt=True, project=output_folder, name="preds", exist_ok=True)
-        print(f"Inferred: {filename}")
+# iou=0.5 matches app.py's NMS default and merges overlapping same-class boxes (Ultralytics default is 0.7).
+# No exist_ok: save_txt appends to existing label files, so re-running into the same folder doubled every box.
+# Each run now writes to a fresh inference_results/preds* folder. save_conf keeps scores for threshold tuning.
+model.predict("dataset/images/val", iou=0.5, save=True, save_txt=True, save_conf=True,
+              project="inference_results", name="preds")

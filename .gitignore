@@ -1,0 +1,5 @@
+__pycache__/
+.venv/
+# runtime output from app.py (snapshots can contain people)
+data/uploads/
+data/webcam/
