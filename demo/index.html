@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='50' fill='%23111'/><text x='50' y='64' font-size='42' text-anchor='middle' fill='%23f5c518' font-family='Arial'>VK</text></svg>" />
+<title>Factory Vision live demo | Vedant Kinikar</title>
+<meta name="description" content="Live demo: a YOLOv8n scratch and dent detector running in your browser with ONNX Runtime Web. Trained and validated on synthetic images only.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Factory Vision: scratch and dent detection in your browser">
+<meta property="og:description" content="Pick a synthetic sample or try your own photo. The YOLOv8n model runs on your device; nothing is uploaded.">
+<meta property="og:url" content="https://vedantkinikar.duckdns.org/projects/factory-vision/demo/">
+<link rel="canonical" href="https://vedantkinikar.duckdns.org/projects/factory-vision/demo/">
+<meta name="theme-color" content="#ffffff">
+<script>
+  (function () {
+    // Relative URLs (model.onnx, ../) need the page to sit at a path ending in "/".
+    var p = location.pathname;
+    if (location.protocol.indexOf('http') === 0 && !/\/$|\.html?$/.test(p)) location.replace(p + '/' + location.search + location.hash);
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600&family=Inter+Tight:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #ffffff; --ink: #111111; --body: #5f5f5f; --muted: #8a8a8a;
+    --card: #f2f2f2; --card-hover: #ebebeb; --line: #e4e4e4;
+    --yellow: #f5c518; --tint: #ff8a4c;
+    --radius: 28px; --max: 1080px; --ease: cubic-bezier(.2, .7, .2, 1);
+    --sans: "Inter Tight", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --hand: "Caveat", "Segoe Print", cursive;
+    --scratch: #d9480f; --dent: #1971c2; --bad: #b54a33;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 400 17px/1.6 var(--sans); -webkit-font-smoothing: antialiased; }
+  body::before {
+    content: ""; position: absolute; z-index: -1; top: 0; left: 0; right: 0; height: 640px; pointer-events: none;
+    background:
+      radial-gradient(34% 55% at 66% 0%, rgba(255, 216, 77, .5), rgba(255, 216, 77, 0) 100%),
+      radial-gradient(60% 100% at 42% 0%, rgba(255, 138, 76, .38), rgba(255, 138, 76, 0) 100%);
+  }
+  h1, h2 { margin: 0 0 .5em; font-weight: 500; letter-spacing: -.03em; line-height: 1.05; }
+  h1 { font-size: clamp(2.2rem, 5.6vw, 4.2rem); letter-spacing: -.05em; margin: 12px 0 22px; max-width: 18ch; }
+  h2 { font-size: clamp(1.5rem, 3vw, 2rem); letter-spacing: -.035em; line-height: 1.1; margin-bottom: 14px; }
+  p { margin: 0 0 1em; }
+  b, strong { font-weight: 600; }
+  a { color: var(--ink); text-underline-offset: 3px; }
+  code { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: .9em; }
+  :focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; border-radius: 8px; }
+  .wrap { max-width: var(--max); margin: 0 auto; padding: 0 20px; }
+  .skip { position: absolute; left: -9999px; }
+  .skip:focus { left: 16px; top: 64px; z-index: 100; background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 999px; }
+
+  .nav { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 50; }
+  .nav ul { display: flex; align-items: center; gap: 2px; margin: 0; padding: 4px; list-style: none; background: #111; border-radius: 999px; box-shadow: 0 8px 30px -10px rgba(0, 0, 0, .45); }
+  .nav a { position: relative; z-index: 1; display: block; padding: 6px 13px; border-radius: 999px; color: #bdbdbd; text-decoration: none; font-size: .9rem; font-weight: 500; white-space: nowrap; }
+  .nav a:hover { color: #fff; }
+  .nav a.on { color: #111; }
+  .nav a.on::before { content: ""; position: absolute; z-index: -1; inset: 0; border-radius: 999px; background: var(--yellow); }
+  .nav .mark { display: grid; place-items: center; width: 30px; height: 30px; padding: 0; margin-right: 2px; border-radius: 50%; background: #262626; color: #fff; font-size: .72rem; font-weight: 600; }
+  .nav .mark:hover { background: var(--yellow); color: #111; }
+  .topblur { position: fixed; inset: 0 0 auto; height: 88px; z-index: 40; pointer-events: none; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); mask-image: linear-gradient(to bottom, #000 30%, transparent); -webkit-mask-image: linear-gradient(to bottom, #000 30%, transparent); background: linear-gradient(to bottom, rgba(255, 255, 255, .55), rgba(255, 255, 255, 0)); }
+
+  header.hero { padding: 120px 0 8px; }
+  .crumbs { font-size: .95rem; margin: 0 0 26px; color: var(--body); }
+  .crumbs a { color: var(--body); text-decoration: none; }
+  .crumbs a:hover { color: var(--ink); }
+  .eyebrow { display: inline-block; font-family: var(--hand); font-weight: 500; font-size: 1.6rem; line-height: 1.1; color: var(--body); transform: rotate(-3deg); transform-origin: left center; }
+  .lede { font-size: clamp(1.1rem, 2.2vw, 1.3rem); line-height: 1.45; letter-spacing: -.01em; max-width: 60ch; }
+  .caveat { border-left: 4px solid var(--yellow); padding: 16px 20px; background: var(--card); border-radius: 0 22px 22px 0; margin: 8px 0 0; max-width: 78ch; }
+
+  section { padding: 48px 0 8px; }
+  .demo { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr); gap: 16px; align-items: start; }
+  .panel { background: var(--card); border-radius: var(--radius); padding: clamp(16px, 3vw, 24px); min-width: 0; }
+  .stage { position: relative; display: grid; place-items: center; min-height: 300px; background: #fff; border-radius: 18px; overflow: hidden; }
+  .stage canvas { display: block; width: 100%; height: auto; }
+  .stage .empty { color: var(--muted); padding: 24px; text-align: center; }
+  .label { display: block; color: var(--body); font-size: .78rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; margin: 0 0 10px; }
+  .samples { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 0 0 16px; padding: 0; list-style: none; }
+  .samples button { width: 100%; padding: 0; border: 2px solid transparent; border-radius: 12px; overflow: hidden; background: #fff; cursor: pointer; }
+  .samples button[aria-pressed="true"] { border-color: var(--ink); }
+  .samples img { display: block; width: 100%; height: auto; }
+  .upload { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 20px; border-radius: 999px; background: var(--ink); color: #fff; font-weight: 500; font-size: .95rem; cursor: pointer; }
+  .upload:hover { background: #333; }
+  .upload:focus-within { outline: 3px solid var(--ink); outline-offset: 3px; }
+  .upload input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+  .hint { color: var(--body); font-size: .85rem; margin: 8px 0 18px; }
+  .slider { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; margin: 0 0 18px; }
+  .slider label { font-size: .9rem; font-weight: 600; color: var(--body); }
+  .slider output { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .slider input { grid-column: 1 / -1; width: 100%; accent-color: var(--ink); }
+  .dets { list-style: none; margin: 0; padding: 0; font-variant-numeric: tabular-nums; }
+  .dets li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: .95rem; }
+  .dets li:last-child { border-bottom: 0; }
+  .dets .sw { flex: none; width: 12px; height: 12px; border-radius: 3px; }
+  .dets .p { margin-left: auto; font-weight: 600; }
+  .muted { color: var(--body); font-size: .9rem; }
+  .status { font-weight: 600; margin: 0 0 12px; }
+  .status.err { color: var(--bad); }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 16px 0 0; }
+  .stat { background: #fff; border-radius: 16px; padding: 12px 14px; }
+  .stat b { display: block; font-size: 1.35rem; font-weight: 500; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+  .stat span { color: var(--body); font-size: .78rem; }
+
+  .how { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+  .how ul { margin: 0; padding-left: 1.1em; color: var(--body); }
+  .how li { margin-bottom: .45em; }
+  .files { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; list-style: none; margin: 0; padding: 0; }
+  .files a { display: block; height: 100%; padding: 18px 22px; background: var(--card); border-radius: var(--radius); text-decoration: none; color: var(--ink); transition: background .3s var(--ease), transform .3s var(--ease); }
+  .files a:hover { background: var(--card-hover); transform: translateY(-2px); }
+  .files code { font-weight: 600; }
+  .files span { display: block; color: var(--body); font-size: .88rem; margin-top: 4px; }
+  footer { color: var(--body); font-size: .85rem; padding: 48px 0 56px; }
+
+  @media (max-width: 820px) { .demo { grid-template-columns: 1fr; } }
+  @media (max-width: 520px) {
+    body { font-size: 16px; }
+    .nav a { padding: 6px 10px; font-size: .85rem; }
+    .stats { grid-template-columns: 1fr 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; } }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="topblur" aria-hidden="true"></div>
+<nav class="nav" aria-label="Main">
+  <ul>
+    <li><a class="mark" href="../../../#hey" aria-label="Portfolio home">VK</a></li>
+    <li><a href="../../../#hey">Hey</a></li><li><a href="../../../#work" class="on">Work</a></li><li><a href="../../../#story">Story</a></li><li><a href="../../../#chat">Chat</a></li>
+  </ul>
+</nav>
+<div class="wrap">
+  <main id="main">
+    <header class="hero">
+      <p class="crumbs"><a href="../../../#work">&larr; All projects</a> &middot; <a href="../">Factory Vision write-up</a></p>
+      <div class="eyebrow">Live demo &middot; runs in your browser</div>
+      <h1>Scratch and dent detection, in your browser</h1>
+      <p class="lede">The project's YOLOv8n detector, exported to ONNX and run on your own device with ONNX Runtime Web. Pick a sample or try a photo of your own: it never leaves this page.</p>
+      <p class="caveat" id="caveat"><b>Read this first:</b> the model was trained and validated on synthetic images only, each a flat grey panel with one dark line (a scratch) or one dark circle (a dent). Its validation scores show the pipeline works end to end, not that it can inspect real parts. On real photos it misses obvious dents and draws boxes on tail lights, door handles and plain panels instead.</p>
+      <noscript><p class="status err">This demo needs JavaScript to run the model. The results are in the <a href="https://github.com/kinikarvedant/Factory-Vision#results">README</a>.</p></noscript>
+    </header>
+
+    <section aria-labelledby="try-h">
+      <h2 class="sr" id="try-h" hidden>Try it</h2>
+      <div class="demo">
+        <div class="panel">
+          <div class="stage" id="stage"><p class="empty" id="empty">Loading the model&hellip;</p><canvas id="view" hidden></canvas></div>
+          <div class="stats" aria-live="polite">
+            <div class="stat"><b id="s-n">&ndash;</b><span>boxes above the threshold</span></div>
+            <div class="stat"><b id="s-ms">&ndash;</b><span>model run on this device</span></div>
+            <div class="stat"><b id="s-in">&ndash;</b><span>model input (px)</span></div>
+          </div>
+        </div>
+        <div class="panel">
+          <p class="status" id="status" role="status">Loading the model (about 12 MB)&hellip;</p>
+          <span class="label" id="samples-l">Synthetic validation images</span>
+          <ul class="samples" id="samples" aria-labelledby="samples-l"></ul>
+          <label class="upload">Use your own photo<input type="file" id="file" accept="image/*"></label>
+          <p class="hint">Real photos are out of the model's depth. Expect misses and false boxes.</p>
+          <div class="slider">
+            <label for="conf">Confidence threshold</label><output id="conf-v" for="conf">0.35</output>
+            <input type="range" id="conf" min="0.05" max="0.9" step="0.01" value="0.35">
+          </div>
+          <span class="label">Detections</span>
+          <ul class="dets" id="dets"><li class="muted">Pick an image to run the model.</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="scores-h">
+      <h2 id="scores-h">What the scores mean</h2>
+      <div class="how">
+        <div class="panel">
+          <span class="label">Validation, run train3</span>
+          <p id="scores">Loading&hellip;</p>
+          <p class="muted">From the last epoch of <code>runs/detect/train3/results.csv</code>, which is also the best one.</p>
+        </div>
+        <div class="panel">
+          <span class="label">Why it fails on real photos</span>
+          <ul>
+            <li>Every training image is one high-contrast shape on a flat grey background.</li>
+            <li>Every training image has exactly one defect, so the model has never seen a clean part.</li>
+            <li>The fix is real defect data, such as NEU-DET or MVTec AD, with a held-out real test set.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="how-h">
+      <h2 id="how-h">How this page works</h2>
+      <div class="how">
+        <div class="panel">
+          <ul>
+            <li><code>demo/export.py</code> exports <code>runs/detect/train3/weights/best.pt</code> to ONNX (opset 17).</li>
+            <li>The image is scaled so its long side is 640 px and padded with grey to a multiple of 32, as ultralytics does.</li>
+            <li>The output holds a box and two class scores for every anchor. Boxes under the threshold are dropped, then overlapping boxes of the same class are merged (IoU 0.5), the same defaults as the Streamlit app.</li>
+          </ul>
+        </div>
+        <div class="panel">
+          <ul>
+            <li><code>export.py</code> checks that this decoding gives the same boxes and scores as the original PyTorch weights on every synthetic validation image in the repo.</li>
+            <li>The three real photos used in the README's out-of-domain check are third-party images, so they aren't bundled here.</li>
+            <li>Timings are measured live in your browser, on one CPU thread.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="files-h">
+      <h2 id="files-h">Source</h2>
+      <ul class="files">
+        <li><a href="https://github.com/kinikarvedant/Factory-Vision#readme"><code>README.md</code><span>Full write-up, results and limitations</span></a></li>
+        <li><a href="https://github.com/kinikarvedant/Factory-Vision/blob/main/demo/export.py"><code>demo/export.py</code><span>Builds this page's model and checks it</span></a></li>
+        <li><a href="https://github.com/kinikarvedant/Factory-Vision/blob/main/demo/index.html"><code>demo/index.html</code><span>This page: pre-processing, decoding, drawing</span></a></li>
+        <li><a href="https://github.com/kinikarvedant/Factory-Vision/blob/main/scripts/synth_defects.py"><code>scripts/synth_defects.py</code><span>Generates the synthetic panels</span></a></li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <p>Model: YOLOv8n fine-tuned with Ultralytics, run with ONNX Runtime Web. Sample images: the project's own synthetic validation set.</p>
+    <p>Built by Vedant Kinikar, Master of Data Science, RMIT University. <a href="../../../">Back to portfolio</a></p>
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/onnxruntime-web/1.30.0/ort.wasm.min.js" integrity="sha512-EdzqfBPuk7yRLfzdepVd3By++Xa221II7g/GXPD8/GGHl5GcbzRAlA1ohdNQgheUP56IfsIA/v4gTagXeKk/Eg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (s) { return document.querySelector(s); };
+  var COLORS = ['#d9480f', '#1971c2'];
+  var meta = null, session = null, image = null, last = null, busy = false;
+
+  function status(text, err) { var s = $('#status'); s.textContent = text; s.className = 'status' + (err ? ' err' : ''); }
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return '&#' + c.charCodeAt(0) + ';'; }); }
+
+  // Scale the long side to 640 and pad with grey 114 to the next multiple of 32 (ultralytics LetterBox, auto=True).
+  function letterbox(img) {
+    var w = img.naturalWidth, h = img.naturalHeight, S = meta.imgsz, r = Math.min(S / w, S / h);
+    var nw = Math.round(w * r), nh = Math.round(h * r), pw = (S - nw) % 32, ph = (S - nh) % 32;
+    var px = Math.round(pw / 2 - 0.1), py = Math.round(ph / 2 - 0.1), W = nw + pw, H = nh + ph;
+    var c = document.createElement('canvas'); c.width = W; c.height = H;
+    var g = c.getContext('2d', { willReadFrequently: true });
+    g.fillStyle = 'rgb(114,114,114)'; g.fillRect(0, 0, W, H);
+    g.drawImage(img, px, py, nw, nh);
+    var d = g.getImageData(0, 0, W, H).data, n = W * H, x = new Float32Array(3 * n);
+    for (var i = 0; i < n; i++) { x[i] = d[4 * i] / 255; x[n + i] = d[4 * i + 1] / 255; x[2 * n + i] = d[4 * i + 2] / 255; }
+    return { tensor: new ort.Tensor('float32', x, [1, 3, H, W]), r: r, px: px, py: py, w: w, h: h, W: W, H: H };
+  }
+
+  function iou(a, b) {
+    var ix = Math.max(0, Math.min(a[2], b[2]) - Math.max(a[0], b[0])), iy = Math.max(0, Math.min(a[3], b[3]) - Math.max(a[1], b[1]));
+    var inter = ix * iy;
+    return inter / ((a[2] - a[0]) * (a[3] - a[1]) + (b[2] - b[0]) * (b[3] - b[1]) - inter);
+  }
+
+  // Output [1, 4 + classes, anchors]: cx, cy, w, h in input pixels, then one score per class.
+  function decode(out, lb, conf) {
+    var o = out.data, rows = out.dims[1], n = out.dims[2], cand = [];
+    function clip(v, p, lim) { return Math.min(Math.max((v - p) / lb.r, 0), lim); }
+    for (var i = 0; i < n; i++) {
+      var best = -1, cls = 0;
+      for (var c = 4; c < rows; c++) if (o[c * n + i] > best) { best = o[c * n + i]; cls = c - 4; }
+      if (best < conf) continue;
+      var cx = o[i], cy = o[n + i], bw = o[2 * n + i], bh = o[3 * n + i];
+      cand.push({ cls: cls, p: best, box: [clip(cx - bw / 2, lb.px, lb.w), clip(cy - bh / 2, lb.py, lb.h), clip(cx + bw / 2, lb.px, lb.w), clip(cy + bh / 2, lb.py, lb.h)] });
+    }
+    cand.sort(function (a, b) { return b.p - a.p; });
+    var keep = [];
+    cand.forEach(function (d) {
+      if (keep.length < 300 && keep.every(function (k) { return k.cls !== d.cls || iou(k.box, d.box) <= meta.iou; })) keep.push(d);
+    });
+    return keep;
+  }
+
+  function draw() {
+    if (!image || !last) return;
+    var conf = +$('#conf').value, dets = decode(last.out, last.lb, conf);
+    var cv = $('#view'), scale = Math.min(1, 1600 / Math.max(image.naturalWidth, image.naturalHeight));
+    cv.width = Math.round(image.naturalWidth * scale); cv.height = Math.round(image.naturalHeight * scale);
+    var g = cv.getContext('2d'), lw = Math.max(2, Math.round(cv.width / 260)), fs = Math.max(13, Math.round(cv.width / 36));
+    g.drawImage(image, 0, 0, cv.width, cv.height);
+    g.font = '600 ' + fs + 'px "Inter Tight", system-ui, sans-serif'; g.textBaseline = 'top';
+    dets.forEach(function (d) {
+      var b = d.box.map(function (v) { return v * scale; }), col = COLORS[d.cls % COLORS.length];
+      var text = meta.names[d.cls] + ' ' + d.p.toFixed(2), tw = g.measureText(text).width + fs * .6, th = fs * 1.35;
+      g.lineWidth = lw; g.strokeStyle = col; g.strokeRect(b[0], b[1], b[2] - b[0], b[3] - b[1]);
+      var ty = b[1] - th >= 0 ? b[1] - th : b[1];
+      g.fillStyle = col; g.fillRect(b[0] - lw / 2, ty, tw, th);
+      g.fillStyle = '#fff'; g.fillText(text, b[0] - lw / 2 + fs * .3, ty + fs * .17);
+    });
+    cv.hidden = false; $('#empty').hidden = true;
+    $('#s-n').textContent = dets.length;
+    $('#dets').innerHTML = dets.length ? dets.map(function (d) {
+      var b = d.box;
+      return '<li><span class="sw" style="background:' + COLORS[d.cls % COLORS.length] + '"></span>' + esc(meta.names[d.cls]) +
+        ' <span class="muted">' + Math.round(b[2] - b[0]) + ' &times; ' + Math.round(b[3] - b[1]) + ' px</span><span class="p">' + d.p.toFixed(2) + '</span></li>';
+    }).join('') : '<li class="muted">No boxes at or above ' + conf.toFixed(2) + '. Try a lower threshold.</li>';
+  }
+
+  function run(img) {
+    if (!session || busy) return;
+    busy = true; image = img; status('Running the model…');
+    var lb = letterbox(img), t0 = performance.now();
+    var feeds = {}; feeds[session.inputNames[0]] = lb.tensor;
+    session.run(feeds).then(function (res) {
+      var ms = performance.now() - t0;
+      last = { out: res[session.outputNames[0]], lb: lb };
+      $('#s-ms').textContent = Math.round(ms) + ' ms';
+      $('#s-in').textContent = lb.W + ' × ' + lb.H;
+      draw(); status('Done. Move the threshold to see weaker boxes.');
+    }).catch(function (e) { status('The model could not run on this image: ' + e.message, true); })
+      .then(function () { busy = false; });
+  }
+
+  function load(src, revoke) {
+    var img = new Image();
+    img.onload = function () { if (revoke) URL.revokeObjectURL(src); run(img); };
+    img.onerror = function () { status('That file could not be read as an image.', true); };
+    img.src = src;
+  }
+
+  function pick(btn) {
+    Array.prototype.forEach.call(document.querySelectorAll('#samples button'), function (b) { b.setAttribute('aria-pressed', b === btn ? 'true' : 'false'); });
+  }
+
+  // Download the model with a progress readout, then start a single-threaded WASM session.
+  function fetchModel(url) {
+    return fetch(url).then(function (r) {
+      if (!r.ok) throw new Error('model.onnx returned HTTP ' + r.status);
+      var total = +r.headers.get('Content-Length') || 0;
+      if (!r.body || !total) return r.arrayBuffer();
+      var reader = r.body.getReader(), got = 0, parts = [];
+      return (function pump() {
+        return reader.read().then(function (c) {
+          if (c.done) {
+            var buf = new Uint8Array(got), at = 0;
+            parts.forEach(function (p) { buf.set(p, at); at += p.length; });
+            return buf.buffer;
+          }
+          parts.push(c.value); got += c.value.length;
+          status('Loading the model: ' + Math.round(100 * got / total) + '% of ' + (total / 1e6).toFixed(1) + ' MB…');
+          return pump();
+        });
+      })();
+    });
+  }
+
+  $('#conf').addEventListener('input', function () { $('#conf-v').textContent = (+this.value).toFixed(2); draw(); });
+  $('#file').addEventListener('change', function () {
+    var f = this.files && this.files[0];
+    if (!f) return;
+    pick(null); load(URL.createObjectURL(f), true);
+    this.value = '';
+  });
+
+  if (typeof ort === 'undefined') { status('ONNX Runtime Web did not load from the CDN, so the model cannot run here.', true); $('#empty').textContent = 'The model could not load.'; return; }
+  ort.env.wasm.wasmPaths = 'https://cdnjs.cloudflare.com/ajax/libs/onnxruntime-web/1.30.0/';
+  ort.env.wasm.numThreads = 1;
+
+  fetch('model.json').then(function (r) { return r.json(); }).then(function (m) {
+    meta = m;
+    $('#conf').value = m.conf; $('#conf-v').textContent = m.conf.toFixed(2);
+    $('#scores').innerHTML = '<b>mAP50 ' + m.map50.toFixed(3) + '</b> and <b>mAP50-95 ' + m.map50_95.toFixed(3) + '</b> on ' + m.val_images +
+      ' synthetic validation images (' + m.val_scratches + ' scratches, ' + m.val_dents + ' dents), after ' + m.epoch + ' epochs.';
+    $('#caveat').insertAdjacentHTML('beforeend', ' Synthetic validation: mAP50 ' + m.map50.toFixed(3) + ', mAP50-95 ' + m.map50_95.toFixed(3) + ' on ' + m.val_images + ' images.');
+    m.samples.forEach(function (s, i) {
+      var li = document.createElement('li'), b = document.createElement('button'), img = new Image(160, 120);
+      b.type = 'button'; b.setAttribute('aria-pressed', 'false'); b.dataset.src = s;
+      img.src = s; img.alt = 'Synthetic sample ' + (i + 1);
+      b.appendChild(img); li.appendChild(b); $('#samples').appendChild(li);
+      b.addEventListener('click', function () { if (busy) return; pick(b); load(s); });
+    });
+    return fetchModel('model.onnx');
+  }).then(function (buf) {
+    status('Starting ONNX Runtime…');
+    return ort.InferenceSession.create(buf, { executionProviders: ['wasm'] });
+  }).then(function (s) {
+    session = s; status('Model ready. Pick an image.');
+    $('#empty').textContent = 'Pick a sample or upload a photo.';
+    var first = document.querySelector('#samples button');
+    if (first) { pick(first); load(first.dataset.src); }
+  }).catch(function (e) {
+    status('The model could not load: ' + e.message, true);
+    $('#empty').textContent = 'The model could not load.';
+  });
+})();
+</script>
+</body>
+</html>

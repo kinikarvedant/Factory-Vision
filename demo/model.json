@@ -1,0 +1,21 @@
+{
+ "names": [
+  "scratch",
+  "dent"
+ ],
+ "imgsz": 640,
+ "conf": 0.35,
+ "iou": 0.5,
+ "epoch": 30,
+ "map50": 0.995,
+ "map50_95": 0.948,
+ "val_images": 60,
+ "val_scratches": 35,
+ "val_dents": 25,
+ "samples": [
+  "samples/00001.jpg",
+  "samples/00002.jpg",
+  "samples/00012.jpg",
+  "samples/00015.jpg"
+ ]
+}

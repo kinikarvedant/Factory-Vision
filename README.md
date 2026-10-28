@@ -2,6 +2,8 @@
 
 A YOLOv8n detector for surface scratches and dents, with a Streamlit inspection app, built end to end on synthetic images.
 
+**Live demo:** [vedantkinikar.duckdns.org/projects/factory-vision/demo/](https://vedantkinikar.duckdns.org/projects/factory-vision/demo/) runs the trained model in your browser with ONNX Runtime Web. Pick a synthetic sample or try your own photo; nothing is uploaded. Expect poor results on real photos (see the out-of-domain check below).
+
 ![YOLOv8n predictions on part of the synthetic validation set](runs/detect/train3/val_batch0_pred.jpg)
 
 *Predictions on part of the synthetic validation set (`runs/detect/train3/val_batch0_pred.jpg`).*
@@ -12,6 +14,7 @@ A YOLOv8n detector for surface scratches and dents, with a Streamlit inspection 
 - `train_model.py` fine-tunes the COCO-pretrained `yolov8n.pt` on that data.
 - `run_infer.py` runs the trained weights over the validation folder and saves annotated images and label files.
 - `app.py` is a Streamlit app for inspecting images with the trained model (see [App features](#app-features)).
+- `demo/export.py` exports the weights to ONNX for the browser demo in `demo/` and checks that the demo's decoding gives the same boxes as `best.pt` on the synthetic validation images.
 
 ## Results
 
@@ -86,6 +89,14 @@ Results go to a new `inference_results/preds*` folder on each run, with confiden
 streamlit run app.py
 ```
 
+**Browser demo:**
+
+```bash
+pip install onnx onnxruntime
+python demo/export.py            # writes demo/model.onnx, model.json and samples/, then checks them
+python -m http.server -d demo     # open http://localhost:8000
+```
+
 **Docker:** not available yet. `Dockerfile.txt` is an empty placeholder.
 
 ## Limitations
@@ -93,13 +104,13 @@ streamlit run app.py
 - The data is synthetic and easy: one high-contrast shape on a flat grey background. Near-perfect scores are expected and say little about real parts.
 - Every image contains exactly one defect, so the model has never seen a defect-free part.
 - It does not transfer to real photos (see the out-of-domain check above).
-- No inference speed benchmark, ONNX export or container image yet.
+- No inference speed benchmark or container image yet. The ONNX export only feeds the browser demo; its latency on an edge device hasn't been measured.
 
 ## Next steps
 
 - Train and test on real defect data such as NEU-DET (steel surface defects) or MVTec AD, and keep a held-out real test set.
 - Add augmentations for lighting, texture, noise and perspective, plus defect-free images.
-- Export to ONNX (`yolo export model=runs/detect/train3/weights/best.pt format=onnx`), then measure latency on an edge device.
+- Measure the ONNX model's latency on an edge device (`demo/export.py` already exports it).
 
 ## Tech stack
 
