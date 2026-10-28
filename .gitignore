@@ -9,3 +9,6 @@ dataset/images/val/00000.jpg
 dataset/images/val/00011.jpg
 dataset/images/val/00029.jpg
 data/webcam/
+inference_results/preds/00000.jpg
+inference_results/preds/00011.jpg
+inference_results/preds/00029.jpg
